@@ -181,15 +181,22 @@ def train_PG(exp_name='',
                 n_layers=n_layers,
                 size=size,
                 activation=tf.nn.relu)
-        sy_sampled_ac = tf.multinomial(sy_logits_na,1) # Hint: Use the tf.multinomial op
-        sy_logprob_n = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=sy_ac_na, logits=sy_logits_na)
+        # Reshape from [batch, numsamples] to [batch] -- in this case numsamples = 1
+        sy_sampled_ac = tf.reshape(tf.multinomial(sy_logits_na,1), [-1]) # Hint: Use the tf.multinomial op
+        sy_logprob_n = -tf.nn.sparse_softmax_cross_entropy_with_logits(labels=sy_ac_na, logits=sy_logits_na)
         
     else:
         # YOUR_CODE_HERE
-        sy_mean = TODO
-        sy_logstd = TODO # logstd should just be a trainable variable, not a network output.
-        sy_sampled_ac = TODO
-        sy_logprob_n = TODO  # Hint: Use the log probability under a multivariate gaussian. 
+        sy_mean = build_mlp(input_placeholder=sy_ob_no,
+                output_size=ac_dim,
+                scope="build_con_nn",
+                n_layers=n_layers,
+                size=size,
+                activation=tf.nn.relu)
+        sy_logstd = tf.get_variable("logstd", shape=[ac_dim]) # logstd should just be a trainable variable, not a network output.
+        # sy_sampled_ac = sy_mean + tf.multiply(tf.exp(sy_logstd), tf.random_normal(tf.shape[sy_mean]))
+        sy_sampled_ac = tf.random_normal(shape=tf.shape(sy_mean), mean=sy_mean, stddev=tf.exp(sy_logstd))
+        sy_logprob_n = tf.contrib.distributions.MultivariateNormalDiag(loc=sy_mean, scale_diag=tf.exp(sy_logstd)).log_prob(sy_ac_na)  # Hint: Use the log probability under a multivariate gaussian. 
 
 
 
